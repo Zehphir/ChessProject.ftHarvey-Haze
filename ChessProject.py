@@ -6,10 +6,12 @@ PLAYERS = ["White","Black"] # Player names
 TEXT = ["a","b","c","d","e","f","g","h"] # Used for the board header and for co-ordinate representation
 MAINCOLOURS = ["\033[38;5;4m","\033[38;5;82m","\033[38;5;9m"]  # Colour code for game text
 piece_names = ["Rook","Knight","Bishop","King","Queen","Pawn"] # Names for check_valid_moves
-#xTest = [["♜",0,"♝", "♛","♚",0,"♞",0],[0,"♟","♟","♟","♟","♟",0,0],[0,0,0,0, 0,0,0,0],["♟",0,0,0 ,0,0,"♟","♟"],[0,0,"♜","♙" ,0,"♙",0,"♙"],["♗",0,"♔",0, 0,0,0,0],["♟",0,"♝",0, "♙",0,0,0],["♖",0,0,0,"♕","♗","♘","♖"],]
-
+#xTest = [["♜",0,"♝", "♛","♚",0,"♞",0],[0,"♟","♟","♟","♟","♟",0,0],[0,0,0,0, 0,0,0,0],["♟",0,0,0 ,0,0,"♟","♟"],[0,0,"♜","♙" ,0,"♙",0,"♙"],["♗",0,"♔",0, 0,0,0,0],["♟",0,"♝",0, "♙",0,0,0],["♖",0,0,0,"♕","♗","♘","♖"]]
+#castlingTest = [    ["♜",0,0, 0,"♚",0,0,"♜"],    [0,"♟","♟","♟","♟","♟",0,0],    [0,0,0,0, 0,0,0,0],    ["♟",0,0,0 ,0,0,"♟","♟"],    [0,0,"♜","♙" ,0,"♙",0,"♙"],["♗",0,0,0, 0,0,0,0],["♟",0,"♝",0, "♙",0,0,0],["♖",0,0,0,"♔",0,0,"♖"]]
+castlingMove = None # Variable used to hold castling swap
 
 def vizier_movement(pos,turn,flag1):
+    global castlingMove
     valid_moves = []
     if board[pos[0]][pos[1]] in "♜♖":  # Check if Rook
         base_movement = [[1, 0], [0, -1], [0, 1], [-1, 0]],    [[1, 0], [0, -1], [0, 1], [-1, 0]]
@@ -65,7 +67,25 @@ def vizier_movement(pos,turn,flag1):
                 x, y = x + base_movement[turn][0], y + base_movement[turn][1] # Sets x,y to new location pos
                 if board[x][y] == 0: # If the new location is empty
                     valid_moves.append([TEXT[y].upper() + str(x + 1)]) # Add new location to valid_moves
-
+    if  (str(board[pos[0]][pos[1]]) in "♚♔" ) and flag1 is False:
+        starting_row = [0, 7]
+        x, y = pos[0], pos[1]
+        if y-3 >= 0:
+            if board[x][y-1] == 0:
+                if board[x][y-2] == 0:
+                    if str(board[x][y - 3]) == ["♜","♖"][turn]:
+                        if starting_row[turn] == x:
+                            valid_moves.append([TEXT[y - 1].upper() + str(x + 1)])
+                            valid_moves.append([TEXT[y - 2].upper() + str(x + 1)])
+                            castlingMove = [x,y],[x,y-3]
+        if y+3 <= 7:
+            if board[x][y+1] == 0:
+                if board[x][y+2] == 0:
+                    if str(board[x][y+3]) == ["♜","♖"][turn]:
+                        if starting_row[turn] == x:
+                            valid_moves.append([TEXT[y + 1].upper() + str(x + 1)])
+                            valid_moves.append([TEXT[y+2].upper() + str(x + 1)])
+                            castlingMove = [x,y],[x,y+3]
 
     return valid_moves # Return collected list of valid movements
 
@@ -133,13 +153,15 @@ def convert_location(input):
 
 
 def main():
-    global board
+    global board,castlingMove
     print(MAINCOLOURS[0], end="  ")
     create_board() # Populate board variable with it's default board state TEST PIECE #board[5][3] = "♞" board[4][5] = "♔" board[5][6] = "♟"board[4][3] = "♚"
-    board[0][7] = "♟"
+    #board[0][7] = "♟"
+    board = castlingTest #Castling Scenario
     turn = 0# Initiate starting player's turn as White
     valid_pieces = {} #Initialise variable to store possible moves
     while True: # Game Loop
+        castlingMove = None
         turn = [0, 1][turn - 1]  # Switch turn to other player
         check_valid_moves([0,1][turn-1], valid_pieces,True) #can take king CHECK
         check_mate_location = [] # List to store all opponents moves
@@ -211,15 +233,21 @@ def main():
         else:
             x = convert_location([selected_move[0][1],selected_move[0][0]]) # Changes previous location to 0
             board[x[0]][x[1]] = 0
-        endrow = [0, 7]
+
+        endrow = [0, 7] ## Promotion code
         for i in range(8):
             for j in range(8):
                 if str(board[i][j]) in "♟♙":
                     if i in endrow :
                         board[i][j] = ["♛","♕"][turn-1]
-            print()
+
         current,target  = convert_location([temp[1], temp[0]]) ,convert_location([selected_move[0][1], selected_move[0][0]]) # Converts represented data to board data to enable movement
         board[current[0]][current[1]], board[target[0]][target[1]] = board[target[0]][target[1]], board[current[0]][current[1]] # Moves piece to new location
+
+        if castlingMove is not None and PIECES[-turn][piece_names.index(move['name'])] in ["♚","♔"]: # Castling code
+            x,y = castlingMove[0][0],castlingMove[0][1]
+            board[x][y] = board[castlingMove[1][0]][castlingMove[1][1]]
+            board[castlingMove[1][0]][castlingMove[1][1]] = 0
         valid_pieces.clear() # Reset all moves stored from previous player
 
 
